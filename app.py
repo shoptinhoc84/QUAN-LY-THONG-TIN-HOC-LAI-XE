@@ -64,13 +64,12 @@ tab1, tab2, tab3 = st.tabs([
 ])
 
 # ==========================================================================================
-# TAB 1: THÊM MỚI HỌC VIÊN (ĐÃ SỬA CƠ CHẾ GIỮ CHỮ KHI CÓ LỖI)
+# TAB 1: THÊM MỚI HỌC VIÊN
 # ==========================================================================================
 with tab1:
     st.subheader("📌 Mẫu Nhập Liệu Hồ Sơ Học Viên")
     st.info("💡 Hướng dẫn: Điền chính xác thông tin hồ sơ gốc của học viên. Các trường có dấu (*) là bắt buộc phải nhập.")
     
-    # ĐÃ SỬA: Chuyển clear_on_submit=False để giữ lại chữ cũ khi có lỗi nhập sai
     with st.form("form_them_moi", clear_on_submit=False):
         
         # Cụm 1: Khung Thông tin cá nhân cơ bản
@@ -95,26 +94,29 @@ with tab1:
         with c2_3:
             lura_xe = st.selectbox("Lựa chọn loại xe thi", LOAI_XE_LIST)
         with c2_4:
-            sbd = st.text_input("Số báo danh (Nếu có)", placeholder="Chưa có điền trống")
+            ngay_thi_dt = st.date_input("Ngày thi dự kiến", min_value=datetime.today(), format="DD/MM/YYYY")
             
         st.markdown("---")
         
         # Cụm 3: Khung Ghi chú bổ sung lịch trình hoặc học phí
         st.markdown("#### 📝 3. THÔNG TIN BỔ SUNG & GHI CHÚ")
-        ghi_chu = st.text_area("Ghi chú hồ sơ trung tâm", placeholder="Ví dụ: Đã nộp đủ hồ sơ gốc, học viên xin học thực hành cuối tuần, đã đóng phí đợt 1...", height=100)
+        c3_1, c3_2 = st.columns([3, 1])
+        with c3_1:
+            ghi_chu = st.text_area("Ghi chú hồ sơ trung tâm", placeholder="Ví dụ: Đã nộp đủ hồ sơ gốc, đóng phí đợt 1...", height=100)
+        with c3_2:
+            sbd = st.text_input("Số báo danh (SBD)", placeholder="Chưa có điền trống")
         
-        # Nút xác nhận lưu
         st.write("")
         col_btn_1, col_btn_2 = st.columns([5, 1])
         with col_btn_2:
             submit_btn = st.form_submit_button("💾 LƯU HỒ SƠ", use_container_width=True)
         
-        # Xử lý Logic chốt chặn định dạng dữ liệu
         if submit_btn:
             ho_ten_clean = ho_ten.strip().upper()  
             cccd_clean = cccd.strip()
             sdt_clean = sdt.strip()
             ghi_chu_clean = ghi_chu.strip()
+            sbd_clean = sbd.strip() if sbd else "Chưa có"
             
             if not ho_ten_clean or not sdt_clean or not cccd_clean:
                 st.error("❌ KHÔNG THỂ LƯU! Vui lòng điền đầy đủ 3 thông tin bắt buộc: Họ tên, CCCD và Số điện thoại.")
@@ -123,14 +125,12 @@ with tab1:
             elif not cccd_clean.isdigit() or len(cccd_clean) != 12:
                 st.error(f"⚠️ SỐ CCCD SAI ĐỊNH DẠNG! Hệ thống đếm được {len(cccd_clean)} ký tự. Vui lòng kiểm tra lại ô Số CCCD (yêu cầu đúng 12 chữ số).")
             else:
-                # Nếu tất cả THÀNH CÔNG -> Tiến hành lưu
                 if len(st.session_state.df_data) == 0:
                     next_stt = 1
                 else:
                     next_stt = int(st.session_state.df_data["STT"].max()) + 1
                 
                 ngay_sinh_str = ngay_sinh_dt.strftime("%d/%m/%Y")
-                ngay_thi_dt = st.date_input("Ngày thi dự kiến", min_value=datetime.today(), format="DD/MM/YYYY") if 'ngay_thi_dt' not in locals() else ngay_thi_dt
                 ngay_thi_str = ngay_thi_dt.strftime("%d/%m/%Y")
                 
                 new_row = {
@@ -138,31 +138,27 @@ with tab1:
                     "Họ tên": ho_ten_clean,
                     "Ngày sinh": ngay_sinh_str,
                     "CCCD": cccd_clean,
-                    "Số báo danh": sbd.strip() if sbd else "Chưa có",
+                    "Số báo danh": sbd_clean,
                     "Số điện thoại": sdt_clean,
                     "Hạng xe": hang_xe,
                     "Lựa xe": lura_xe,
                     "Ngày thi": ngay_thi_str,
-                    "Ghi chú": ghi_chu_clean if ghi_chu_clean else ""
+                    "Ghi chú": ghi_chu_clean
                 }
                 
                 st.session_state.df_data = pd.concat([st.session_state.df_data, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(st.session_state.df_data)
                 
-                # Đăng ký thông báo thành công
                 st.session_state.luu_thanh_cong = f"🎉 ĐÃ LƯU HỒ SƠ THÀNH CÔNG! Học viên: {ho_ten_clean} (STT hệ thống: {next_stt})"
-                
-                # ĐÃ SỬA: Ép trang web tự reset xóa sạch dữ liệu cũ khi thành công bằng cách kích hoạt cơ chế rerun
                 st.rerun()
 
-    # Giữ thông báo hiển thị sau khi trang làm mới lại thành công
     if 'luu_thanh_cong' in st.session_state:
         st.success(st.session_state.luu_thanh_cong)
         st.toast(st.session_state.luu_thanh_cong, icon="🎉")
         del st.session_state.luu_thanh_cong
 
 # ==========================================================================================
-# TAB 2: TÌM KIẾM VÀ CHỈNH SỬA TRỰC TIẾP
+# TAB 2: TÌM KIẾM VÀ CHỈNH SỬA TRỰC TIẾP (ĐÃ NÂNG CẤP XÓA DÒNG CHUẨN XÁC)
 # ==========================================================================================
 with tab2:
     st.subheader("🔍 Tìm Kiếm Học Viên & Điều Chỉnh Hồ Sơ Nhanh")
@@ -180,8 +176,9 @@ with tab2:
     else:
         df_filtered = df_current
 
-    st.write("💡 *Mẹo thao tác trung tâm: Bạn có thể click đúp chuột thẳng vào ô dưới bảng để sửa chữ trực tiếp giống như Excel.*")
+    st.write("💡 *Mẹo thao tác: Bạn có thể sửa chữ trực tiếp trên ô. Để xóa hàng, hãy chọn hàng đó rồi bấm phím Delete trên bàn phím.*")
     
+    # Sử dụng bộ biên tập dữ liệu thông minh hỗ trợ xóa hàng vĩnh viễn
     edited_df = st.data_editor(
         df_filtered, 
         num_rows="dynamic",
@@ -194,19 +191,29 @@ with tab2:
         btn_save_changes = st.button("💾 CẬP NHẬT THAY ĐỔI", use_container_width=True)
         
     if btn_save_changes:
+        # Lấy trạng thái bảng trước khi sửa đổi để xử lý đồng bộ xóa vĩnh viễn
         if search_keyword:
+            # Tìm danh sách những người đã bị xóa khỏi bảng lọc
+            deleted_indices = df_filtered.index.difference(edited_df.index)
+            df_current = df_current.drop(deleted_indices)
             df_current.update(edited_df)
             st.session_state.df_data = df_current
         else:
             st.session_state.df_data = edited_df
             
-        st.session_state.df_data["STT"] = pd.to_numeric(st.session_state.df_data["STT"]).astype(int)
+        # Làm sạch lại tên (viết hoa) và số thứ tự sau khi sửa
+        st.session_state.df_data["Họ tên"] = st.session_state.df_data["Họ tên"].astype(str).str.upper().str.strip()
+        st.session_state.df_data = st.session_state.df_data.reset_index(drop=True)
+        
+        # Tạo lại số thứ tự STT liên tục, không bị đứt đoạn kể cả khi xóa bớt người
+        st.session_state.df_data["STT"] = range(1, len(st.session_state.df_data) + 1)
+        
         save_data(st.session_state.df_data)
-        st.success("✅ Hệ thống đã ghi nhận toàn bộ chỉnh sửa mới vào file dữ liệu!")
+        st.success("✅ Hệ thống đã ghi nhận và đồng bộ toàn bộ chỉnh sửa/xóa mới!")
         st.rerun()
 
 # ==========================================================================================
-# TAB 3: XUẤT FILE EXCEL ĐẸP IN ẤN 
+# TAB 3: XUẤT FILE EXCEL ĐẸP IN ẤN
 # ==========================================================================================
 with tab3:
     st.subheader("📋 Tùy Chọn Học Viên Để Xuất Danh Sách In Ấn")
