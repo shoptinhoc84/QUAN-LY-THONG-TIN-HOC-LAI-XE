@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Thay thế hoàn toàn st.markdown HTML bằng các hàm Streamlit gốc để chống lỗi Python 3.14
+# Tiêu đề giao diện gốc của Streamlit
 with st.container():
     st.title("HỆ THỐNG QUẢN LÝ & CƠ SỞ DỮ LIỆU HỌC VIÊN LÁI XE")
     st.caption("🔹 Hỗ trợ nghiệp vụ Trung tâm — Cập nhật Luật Sát hạch mới nhất 2026")
@@ -31,10 +31,12 @@ def load_data():
         try:
             df = pd.read_excel(DATA_FILE)
             
+            # Khử toàn bộ giá trị rỗng/NaN về chuỗi trống để không bị lỗi tính toán
+            df = df.fillna("")
+            
             # Ép kiểu dữ liệu chuỗi text sạch để tránh Excel tự nhảy định dạng số
             for col in df.columns:
-                if col in ["Ngày sinh", "Ngày thi", "CCCD", "Số điện thoại", "Số báo danh", "Lựa xe", "Ghi chú"]:
-                    df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
             
             # Tự động đồng bộ cột mới nếu file cũ chưa có
             for col in COLUMNS_LIST:
@@ -104,7 +106,6 @@ with tab1:
         
         # Cụm 3: Khung Ghi chú bổ sung lịch trình hoặc học phí
         st.markdown("#### 📝 3. THÔNG TIN BỔ SUNG & GHI CHÚ")
-        # ĐÃ SỬA: Đổi từ rows=3 thành height=100 để không bị lỗi trên Streamlit Cloud mới
         ghi_chu = st.text_area("Ghi chú hồ sơ trung tâm", placeholder="Ví dụ: Đã nộp đủ hồ sơ gốc, học viên xin học thực hành cuối tuần, đã đóng phí đợt 1...", height=100)
         
         # Nút xác nhận lưu được thiết kế căn lề phải gọn gàng, rõ nét
@@ -209,17 +210,19 @@ with tab2:
         st.rerun()
 
 # ==========================================================================================
-# TAB 3: XUẤT FILE EXCEL ĐẸP IN ẤN
+# TAB 3: XUẤT FILE EXCEL ĐẸP IN ẤN (ĐÃ FIX LỖI ĐO ĐỘ RỘNG CỘT)
 # ==========================================================================================
 with tab3:
     st.subheader("📋 Xem Trước & Tải Bảng Điểm/Danh Sách Sát Hạch")
     
     if len(st.session_state.df_data) > 0:
-        st.dataframe(st.session_state.df_data, use_container_width=True)
+        # Làm sạch bản hiển thị trước khi xem
+        display_df = st.session_state.df_data.fillna("")
+        st.dataframe(display_df, use_container_width=True)
         
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            st.session_state.df_data.to_excel(writer, index=False, sheet_name='DANH SÁCH HỌC VIÊN')
+            display_df.to_excel(writer, index=False, sheet_name='DANH SÁCH HỌC VIÊN')
             
             workbook  = writer.book
             worksheet = writer.sheets['DANH SÁCH HỌC VIÊN']
@@ -257,23 +260,25 @@ with tab3:
             
             worksheet.set_row(0, 30)
             
-            for col_num, value in enumerate(st.session_state.df_data.columns.values):
+            for col_num, value in enumerate(display_df.columns.values):
                 worksheet.write(0, col_num, value, header_format)
             
-            for i, col in enumerate(st.session_state.df_data.columns):
+            for i, col in enumerate(display_df.columns):
                 if col in ["Họ tên", "Ghi chú"]:
                     current_format = cell_left_format
                 else:
                     current_format = cell_center_format
                 
-                for row_num in range(1, len(st.session_state.df_data) + 1):
-                    val = st.session_state.df_data.iloc[row_num - 1, i]
-                    val_str = "" if pd.isna(val) or str(val) == "nan" else str(val)
+                for row_num in range(1, len(display_df) + 1):
+                    val = display_df.iloc[row_num - 1, i]
+                    val_str = "" if pd.isna(val) or str(val) == "nan" else str(val).strip()
                     worksheet.write(row_num, i, val_str, current_format)
                     worksheet.set_row(row_num, 24)
                 
+                # ĐÃ SỬA: Đoạn mã đo độ rộng cột mới cực kỳ an toàn, chống hoàn toàn lỗi NaN/Empty
+                col_series = display_df[col].astype(str).fillna("")
                 max_len = max(
-                    st.session_state.df_data[col].astype(str).map(len).max(),
+                    col_series.map(len).max() if not col_series.empty else 0,
                     len(str(col))
                 ) + 5
                 worksheet.set_column(i, i, max_len)
