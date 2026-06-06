@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+import io
 
 # Cấu hình trang
 st.set_page_config(page_title="Quản Lý Thông Tin Học Viên", layout="wide")
@@ -10,21 +11,21 @@ st.title("ỨNG DỤNG QUẢN LÝ THÔNG TIN HỌC VIÊN LÁI XE (CẬP NHẬT 2
 # Tên file lưu trữ dữ liệu mặc định
 DATA_FILE = "database_khachhang.xlsx"
 
-# Khai báo các cột chuẩn của hệ thống
-COLUMNS_LIST = ["STT", "Họ tên", "Ngày sinh", "Số báo danh", "Số điện thoại", "Hạng xe", "Ngày thi"]
+# Khai báo các cột chuẩn của hệ thống (Đã thêm cột CCCD)
+COLUMNS_LIST = ["STT", "Họ tên", "Ngày sinh", "CCCD", "Số báo danh", "Số điện thoại", "Hạng xe", "Ngày thi"]
 
 # Hàm khởi tạo hoặc tải dữ liệu từ file Excel
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
             df = pd.read_excel(DATA_FILE)
-            # Đảm bảo các cột ngày tháng luôn ở dạng chuỗi để không bị Excel tự định dạng lại
-            if "Ngày sinh" in df.columns:
-                df["Ngày sinh"] = df["Ngày sinh"].astype(str)
-            if "Ngày thi" in df.columns:
-                df["Ngày thi"] = df["Ngày thi"].astype(str)
             
-            # Kiểm tra và bổ sung cột thiếu nếu file cũ không có
+            # Kiểm tra và chuyển đổi dữ liệu ngày tháng, CCCD, SĐT sang dạng chuỗi text để tránh mất số 0 hoặc lỗi định dạng
+            for col in df.columns:
+                if col in ["Ngày sinh", "Ngày thi", "CCCD", "Số điện thoại", "Số báo danh"]:
+                    df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+            
+            # Kiểm tra và bổ sung cột thiếu nếu dữ liệu cũ chưa có
             for col in COLUMNS_LIST:
                 if col not in df.columns:
                     df[col] = "Chưa có"
@@ -34,7 +35,7 @@ def load_data():
     else:
         return pd.DataFrame(columns=COLUMNS_LIST)
 
-# Hàm lưu dữ liệu vào file Excel
+# Hàm lưu dữ liệu vào file Excel gốc
 def save_data(df):
     df.to_excel(DATA_FILE, index=False)
 
@@ -43,7 +44,7 @@ if 'df_data' not in st.session_state:
     st.session_state.df_data = load_data()
 
 # Chia giao diện thành các Tab chức năng
-tab1, tab2, tab3 = st.tabs(["➕ Thêm Học Viên Mới", "🔍 Tìm Kiếm & Chỉnh Sửa", "📥 Xuất Excel"])
+tab1, tab2, tab3 = st.tabs(["➕ Thêm Học Viên Mới", "🔍 Tìm Kiếm & Chỉnh Sửa", "📥 Xuất Excel In Ấn"])
 
 # Danh sách hạng xe mới áp dụng từ năm 2026
 HANG_XE_2026 = ["A1", "A", "B", "C1", "C", "D1", "D2", "D", "BE", "C1E", "CE", "D1E", "D2E", "DE"]
@@ -58,19 +59,19 @@ with tab1:
         col1, col2 = st.columns(2)
         with col1:
             ho_ten = st.text_input("Họ và tên *")
-            # Chọn ngày sinh - mặc định hiển thị định dạng ngày/tháng/năm trên web
             ngay_sinh_dt = st.date_input("Ngày sinh", min_value=datetime(1950, 1, 1), max_value=datetime.today(), format="DD/MM/YYYY")
+            cccd = st.text_input("Số CCCD / Định danh *")
             sbd = st.text_input("Số báo danh (SBD)")
         with col2:
             sdt = st.text_input("Số điện thoại *")
             hang_xe = st.selectbox("Hạng xe (Luật mới 2026)", HANG_XE_2026)
             ngay_thi_dt = st.date_input("Ngày thi dự kiến", min_value=datetime.today(), format="DD/MM/YYYY")
             
-        submit_btn = st.form_submit_button("Lưu hệ thống")
+        submit_btn = st.form_submit_button("Lưu vào hệ thống")
         
         if submit_btn:
-            if not ho_ten or not sdt:
-                st.error("Vui lòng điền đầy đủ các thông tin bắt buộc (*)")
+            if not ho_ten or not sdt or not cccd:
+                st.error("Vui lòng điền đầy đủ các thông tin bắt buộc (* gồm Họ tên, CCCD, Số điện thoại)")
             else:
                 # Tính số thứ tự (STT) tự động tăng
                 if len(st.session_state.df_data) == 0:
@@ -87,6 +88,7 @@ with tab1:
                     "STT": next_stt,
                     "Họ tên": ho_ten.strip(),
                     "Ngày sinh": ngay_sinh_str,
+                    "CCCD": cccd.strip(),
                     "Số báo danh": sbd.strip() if sbd else "Chưa có",
                     "Số điện thoại": sdt.strip(),
                     "Hạng xe": hang_xe,
@@ -102,16 +104,17 @@ with tab1:
 # TAB 2: TÌM KIẾM VÀ CHỈNH SỬA
 # ------------------------------------------------------------------------------------------
 with tab2:
-    st.header("Danh sách & Chỉnh sửa thông tin")
+    st.header("Danh sách & Chỉnh sửa thông tin nhanh")
     
     df_current = st.session_state.df_data
     
-    # Bộ lọc tìm kiếm nhanh
-    search_keyword = st.text_input("🔍 Nhập Họ tên hoặc Số điện thoại để tìm kiếm:")
+    # Bộ lọc tìm kiếm nhanh toàn diện
+    search_keyword = st.text_input("🔍 Nhập Họ tên, CCCD hoặc Số điện thoại để tìm kiếm:")
     
     if search_keyword:
         df_filtered = df_current[
             df_current["Họ tên"].str.contains(search_keyword, case=False, na=False) |
+            df_current["CCCD"].astype(str).str.contains(search_keyword, na=False) |
             df_current["Số điện thoại"].astype(str).str.contains(search_keyword, na=False)
         ]
     else:
@@ -119,7 +122,6 @@ with tab2:
 
     st.write("💡 *Bạn có thể click đúp trực tiếp vào ô trong bảng dưới đây để sửa nhanh, hoặc tích chọn hàng để xóa.*")
     
-    # Sử dụng data_editor chỉnh sửa trực tiếp, ép kiểu cột Ngày tháng thành chuỗi để tránh bị đảo lộn
     edited_df = st.data_editor(
         df_filtered, 
         num_rows="dynamic",
@@ -135,30 +137,72 @@ with tab2:
         else:
             st.session_state.df_data = edited_df
             
+        # Đảm bảo cột STT luôn là số nguyên sạch sẽ
+        st.session_state.df_data["STT"] = pd.to_numeric(st.session_state.df_data["STT"]).astype(int)
         save_data(st.session_state.df_data)
         st.success("Đã cập nhật thay đổi thành công vào file hệ thống!")
         st.rerun()
 
 # ------------------------------------------------------------------------------------------
-# TAB 3: XUẤT FILE EXCEL
+# TAB 3: XUẤT FILE EXCEL ĐẸP IN ẤN
 # ------------------------------------------------------------------------------------------
 with tab3:
-    st.header("Xuất dữ liệu ra file Excel")
+    st.header("Xem trước danh sách & Xuất file Excel chuẩn In Ấn")
     
     if len(st.session_state.df_data) > 0:
         st.dataframe(st.session_state.df_data, use_container_width=True)
         
-        # Chuyển đổi dữ liệu sang excel dạng nhị phân để tải trực tiếp trên trình duyệt
-        import io
+        # Hàm xuất định dạng nâng cao bằng XlsxWriter
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            st.session_state.df_data.to_excel(writer, index=False, sheet_name='DanhSachHocVien')
+            st.session_state.df_data.to_excel(writer, index=False, sheet_name='DANH SÁCH HỌC VIÊN')
             
-        st.download_button(
-            label="📥 Tải file Excel về máy (.xlsx)",
-            data=buffer.getvalue(),
-            file_name=f"Danh_sach_hoc_vien_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-            mime="application/vnd.ms-excel"
-        )
-    else:
-        st.info("Hiện tại chưa có dữ liệu nào để xuất.")
+            # Lấy đối tượng workbook và worksheet từ hệ thống
+            workbook  = writer.book
+            worksheet = writer.sheets['DANH SÁCH HỌC VIÊN']
+            
+            # 1. Tạo định dạng cho Tiêu đề cột (Header): Nền xanh đậm, chữ trắng, in đậm, viền xám mỏng
+            header_format = workbook.add_format({
+                'bold': True,
+                'text_wrap': True,
+                'valign': 'vcenter',
+                'align': 'center',
+                'fg_color': '#1F4E78',  # Màu xanh navy chuyên nghiệp
+                'font_color': '#FFFFFF',
+                'font_name': 'Times New Roman',
+                'font_size': 12,
+                'border': 1,
+                'border_color': '#D9D9D9'
+            })
+            
+            # 2. Tạo các định dạng ô nội dung học viên
+            cell_center_format = workbook.add_format({
+                'align': 'center',
+                'valign': 'vcenter',
+                'font_name': 'Times New Roman',
+                'font_size': 11,
+                'border': 1,
+                'border_color': '#D9D9D9'
+            })
+            
+            cell_left_format = workbook.add_format({
+                'align': 'left',
+                'valign': 'vcenter',
+                'font_name': 'Times New Roman',
+                'font_size': 11,
+                'border': 1,
+                'border_color': '#D9D9D9'
+            })
+            
+            # Đặt độ cao cho hàng tiêu đề cột (rộng rãi dễ nhìn)
+            worksheet.set_row(0, 28)
+            
+            # Đè định dạng chuẩn lên dòng đầu tiên (Header)
+            for col_num, value in enumerate(st.session_state.df_data.columns.values):
+                worksheet.write(0, col_num, value, header_format)
+            
+            # Duyệt qua từng cột để căn lề và tính toán độ rộng tự động cho thẳng hàng
+            for i, col in enumerate(st.session_state.df_data.columns):
+                # Riêng cột Họ tên thì căn trái, các cột thông số khác căn giữa cho đẹp cân đối
+                if col in ["Họ tên"]:
+                    current_format = cell_left_format
