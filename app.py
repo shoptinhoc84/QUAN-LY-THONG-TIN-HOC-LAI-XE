@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ĐÃ SỬA: Thay thế hoàn toàn st.markdown HTML bằng các hàm Streamlit gốc để chống lỗi Python 3.14
+# Thay thế hoàn toàn st.markdown HTML bằng các hàm Streamlit gốc để chống lỗi Python 3.14
 with st.container():
     st.title("HỆ THỐNG QUẢN LÝ & CƠ SỞ DỮ LIỆU HỌC VIÊN LÁI XE")
     st.caption("🔹 Hỗ trợ nghiệp vụ Trung tâm — Cập nhật Luật Sát hạch mới nhất 2026")
@@ -104,7 +104,8 @@ with tab1:
         
         # Cụm 3: Khung Ghi chú bổ sung lịch trình hoặc học phí
         st.markdown("#### 📝 3. THÔNG TIN BỔ SUNG & GHI CHÚ")
-        ghi_chu = st.text_area("Ghi chú hồ sơ trung tâm", placeholder="Ví dụ: Đã nộp đủ hồ sơ gốc, học viên xin học thực hành cuối tuần, đã đóng phí đợt 1...", rows=3)
+        # ĐÃ SỬA: Đổi từ rows=3 thành height=100 để không bị lỗi trên Streamlit Cloud mới
+        ghi_chu = st.text_area("Ghi chú hồ sơ trung tâm", placeholder="Ví dụ: Đã nộp đủ hồ sơ gốc, học viên xin học thực hành cuối tuần, đã đóng phí đợt 1...", height=100)
         
         # Nút xác nhận lưu được thiết kế căn lề phải gọn gàng, rõ nét
         st.write("")
