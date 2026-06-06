@@ -13,22 +13,22 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Thiết lập phong cách hiển thị tiêu đề chính bằng màu sắc thương hiệu trung tâm
+# ĐÃ SỬA: Đưa chuỗi HTML về sát lề trái để tránh lỗi thụt dòng trên Python 3.14
 st.markdown("""
-    <div style="background-color:#1F4E78; padding:20px; border-radius:10px; margin-bottom:25px">
-        <h1 style="color:white; text-align:center; margin:0; font-family:'Times New Roman';">
-            HỆ THỐNG QUẢN LÝ & CƠ SỞ DỮ LIỆU HỌC VIÊN LÁI XE
-        </h1>
-        <p style="color:#D9D9D9; text-align:center; margin:5px 0 0 0; font-size:14px;">
-            Hỗ trợ nghiệp vụ Trung tâm - Cập nhật Luật Sát hạch mới nhất 2026
-        </p>
-    </div>
+<div style="background-color:#1F4E78; padding:20px; border-radius:10px; margin-bottom:25px">
+    <h1 style="color:white; text-align:center; margin:0; font-family:'Times New Roman';">
+        HỆ THỐNG QUẢN LÝ & CƠ SỞ DỮ LIỆU HỌC VIÊN LÁI XE
+    </h1>
+    <p style="color:#D9D9D9; text-align:center; margin:5px 0 0 0; font-size:14px;">
+        Hỗ trợ nghiệp vụ Trung tâm - Cập nhật Luật Sát hạch mới nhất 2026
+    </p>
+</div>
 """, unsafe_allowed_html=True)
 
 # Tên file lưu trữ dữ liệu mặc định của hệ thống
 DATA_FILE = "database_khachhang.xlsx"
 
-# Khai báo các cột chuẩn của hệ thống (Đã thêm cột Ghi chú)
+# Khai báo các cột chuẩn của hệ thống
 COLUMNS_LIST = ["STT", "Họ tên", "Ngày sinh", "CCCD", "Số báo danh", "Số điện thoại", "Hạng xe", "Lựa xe", "Ngày thi", "Ghi chú"]
 
 # Hàm khởi tạo hoặc tải dữ liệu từ file Excel
@@ -74,7 +74,7 @@ tab1, tab2, tab3 = st.tabs([
 ])
 
 # ==========================================================================================
-# TAB 1: THÊM MỚI HỌC VIÊN (THIẾT KẾ PHONG CÁCH FORM CHUYÊN NGHIỆP)
+# TAB 1: THÊM MỚI HỌC VIÊN
 # ==========================================================================================
 with tab1:
     st.subheader("📌 Mẫu Nhập Liệu Hồ Sơ Học Viên")
@@ -161,7 +161,7 @@ with tab1:
                 st.session_state.luu_thanh_cong = f"🎉 ĐÃ LƯU HỒ SƠ THÀNH CÔNG! Học viên: {ho_ten_clean} (STT hệ thống: {next_stt})"
                 st.rerun()
 
-    # Giữ thông báo hiển thị sau khi trang reload
+    # Giữ thông báo hiển thị sau khi trang xếp lại
     if 'luu_thanh_cong' in st.session_state:
         st.success(st.session_state.luu_thanh_cong)
         st.toast(st.session_state.luu_thanh_cong, icon="🎉")
@@ -175,7 +175,6 @@ with tab2:
     
     df_current = st.session_state.df_data
     
-    # Bộ lọc tìm kiếm đa năng tích hợp bộ gõ thông minh
     search_keyword = st.text_input("🔎 Nhập từ khóa cần tìm (Họ tên, CCCD, Số điện thoại hoặc Hạng xe):", placeholder="Gõ nội dung tìm kiếm vào đây...")
     
     if search_keyword:
@@ -190,7 +189,6 @@ with tab2:
 
     st.write("💡 *Mẹo thao tác trung tâm: Bạn có thể click đúp chuột thẳng vào ô dưới bảng để sửa chữ trực tiếp giống như Excel.*")
     
-    # Hiển thị bảng dữ liệu tương tác thông minh
     edited_df = st.data_editor(
         df_filtered, 
         num_rows="dynamic",
@@ -215,7 +213,7 @@ with tab2:
         st.rerun()
 
 # ==========================================================================================
-# TAB 3: XUẤT FILE EXCEL ĐẸP IN ẤN (TỐI ƯU CHO PHÒNG BAN VÀ GIÁO VIÊN)
+# TAB 3: XUẤT FILE EXCEL ĐẸP IN ẤN
 # ==========================================================================================
 with tab3:
     st.subheader("📋 Xem Trước & Tải Bảng Điểm/Danh Sách Sát Hạch")
@@ -230,13 +228,12 @@ with tab3:
             workbook  = writer.book
             worksheet = writer.sheets['DANH SÁCH HỌC VIÊN']
             
-            # Định dạng cho Tiêu đề cột (Header) - Đậm đà, chuyên nghiệp
             header_format = workbook.add_format({
                 'bold': True,
                 'text_wrap': True,
                 'valign': 'vcenter',
                 'align': 'center',
-                'fg_color': '#1F4E78',  # Xanh thẫm thương hiệu văn phòng
+                'fg_color': '#1F4E78',
                 'font_color': '#FFFFFF',
                 'font_name': 'Times New Roman',
                 'font_size': 12,
@@ -244,7 +241,6 @@ with tab3:
                 'border_color': '#D9D9D9'
             })
             
-            # Định dạng ô căn giữa (STT, Ngày sinh, CCCD, SĐT, Ngày thi, Hạng, Loại xe)
             cell_center_format = workbook.add_format({
                 'align': 'center',
                 'valign': 'vcenter',
@@ -254,7 +250,6 @@ with tab3:
                 'border_color': '#D9D9D9'
             })
             
-            # Định dạng ô căn lề trái (Dành riêng cho Họ tên và Ghi chú dài)
             cell_left_format = workbook.add_format({
                 'align': 'left',
                 'valign': 'vcenter',
@@ -264,15 +259,12 @@ with tab3:
                 'border_color': '#D9D9D9'
             })
             
-            # Thiết lập độ cao dòng đầu tiêu đề
             worksheet.set_row(0, 30)
             
             for col_num, value in enumerate(st.session_state.df_data.columns.values):
                 worksheet.write(0, col_num, value, header_format)
             
-            # Duyệt cấu trúc kẻ bảng dữ liệu in ấn sạch sẽ
             for i, col in enumerate(st.session_state.df_data.columns):
-                # Áp dụng căn lề logic: Tên và Ghi chú căn trái, còn lại căn giữa
                 if col in ["Họ tên", "Ghi chú"]:
                     current_format = cell_left_format
                 else:
@@ -280,22 +272,19 @@ with tab3:
                 
                 for row_num in range(1, len(st.session_state.df_data) + 1):
                     val = st.session_state.df_data.iloc[row_num - 1, i]
-                    # Xử lý tránh lưu giá trị rỗng/nan thành chữ lạ trên Excel
                     val_str = "" if pd.isna(val) or str(val) == "nan" else str(val)
                     worksheet.write(row_num, i, val_str, current_format)
-                    worksheet.set_row(row_num, 24)  # Chiều cao hàng thoáng mát để ghi điểm hoặc ký tên
+                    worksheet.set_row(row_num, 24)
                 
-                # Tự động tính toán mở rộng cột dựa trên độ dài chuỗi chữ lớn nhất
                 max_len = max(
                     st.session_state.df_data[col].astype(str).map(len).max(),
                     len(str(col))
                 ) + 5
                 worksheet.set_column(i, i, max_len)
                 
-            # Thiết lập chế độ trang in tối ưu sẵn
-            worksheet.set_landscape()     # In ngang khổ giấy để chứa hết tất cả các cột
-            worksheet.set_paper(9)         # Chuẩn khổ giấy A4 văn phòng Việt Nam
-            worksheet.fit_to_pages(1, 0)   # Tự động co giãn theo chiều ngang vừa khít 1 trang giấy
+            worksheet.set_landscape()
+            worksheet.set_paper(9)
+            worksheet.fit_to_pages(1, 0)
             
         st.write("")
         st.download_button(
