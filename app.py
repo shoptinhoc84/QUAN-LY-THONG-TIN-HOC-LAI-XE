@@ -11,8 +11,8 @@ st.title("ỨNG DỤNG QUẢN LÝ THÔNG TIN HỌC VIÊN LÁI XE (CẬP NHẬT 2
 # Tên file lưu trữ dữ liệu mặc định
 DATA_FILE = "database_khachhang.xlsx"
 
-# Khai báo các cột chuẩn của hệ thống
-COLUMNS_LIST = ["STT", "Họ tên", "Ngày sinh", "CCCD", "Số báo danh", "Số điện thoại", "Hạng xe", "Ngày thi"]
+# Khai báo các cột chuẩn của hệ thống (Đã thêm cột Lựa xe)
+COLUMNS_LIST = ["STT", "Họ tên", "Ngày sinh", "CCCD", "Số báo danh", "Số điện thoại", "Hạng xe", "Lựa xe", "Ngày thi"]
 
 # Hàm khởi tạo hoặc tải dữ liệu từ file Excel
 def load_data():
@@ -22,13 +22,13 @@ def load_data():
             
             # Kiểm tra và chuyển đổi dữ liệu sang dạng chuỗi text để tránh mất số 0 hoặc lỗi định dạng
             for col in df.columns:
-                if col in ["Ngày sinh", "Ngày thi", "CCCD", "Số điện thoại", "Số báo danh"]:
+                if col in ["Ngày sinh", "Ngày thi", "CCCD", "Số điện thoại", "Số báo danh", "Lựa xe"]:
                     df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
             
             # Kiểm tra và bổ sung cột thiếu nếu dữ liệu cũ chưa có
             for col in COLUMNS_LIST:
                 if col not in df.columns:
-                    df[col] = "Chưa có"
+                    df[col] = "Chưa chọn"
             return df[COLUMNS_LIST]
         except Exception:
             return pd.DataFrame(columns=COLUMNS_LIST)
@@ -46,11 +46,14 @@ if 'df_data' not in st.session_state:
 # Khai báo các Tab chức năng
 tab1, tab2, tab3 = st.tabs(["➕ Thêm Học Viên Mới", "🔍 Tìm Kiếm & Chỉnh Sửa", "📥 Xuất Excel In Ấn"])
 
-# Danh sách hạng xe mới áp dụng từ năm 2026
+# Danh sách hạng xe áp dụng từ năm 2026
 HANG_XE_2026 = ["A1", "A", "B", "C1", "C", "D1", "D2", "D", "BE", "C1E", "CE", "D1E", "D2E", "DE"]
 
+# Danh sách phân loại lựa xe theo yêu cầu
+LOAI_XE_LIST = ["Xe số - Xe côn (Loại 1)", "Xe tay ga (Loại 2)"]
+
 # ------------------------------------------------------------------------------------------
-# TAB 1: THÊM MỚI HỌC VIÊN (ĐÃ KHÓA CHẶT ĐỊNH DẠNG 10 SỐ VÀ 12 SỐ)
+# TAB 1: THÊM MỚI HỌC VIÊN
 # ------------------------------------------------------------------------------------------
 with tab1:
     st.header("Nhập thông tin học viên mới")
@@ -60,19 +63,17 @@ with tab1:
         with col1:
             ho_ten = st.text_input("Họ và tên *")
             ngay_sinh_dt = st.date_input("Ngày sinh", min_value=datetime(1950, 1, 1), max_value=datetime.today(), format="DD/MM/YYYY")
-            # max_chars=12 ngăn không cho gõ ký tự thứ 13
             cccd = st.text_input("Số CCCD (Bắt buộc nhập đủ 12 số) *", max_chars=12, help="Nhập chính xác 12 chữ số")
             sbd = st.text_input("Số báo danh (SBD)")
         with col2:
-            # max_chars=10 ngăn không cho gõ ký tự thứ 11
             sdt = st.text_input("Số điện thoại (Bắt buộc nhập đủ 10 số) *", max_chars=10, help="Nhập chính xác 10 chữ số bắt đầu từ số 0")
             hang_xe = st.selectbox("Hạng xe (Luật mới 2026)", HANG_XE_2026)
+            lura_xe = st.selectbox("Lựa xe (Phân loại)", LOAI_XE_LIST)
             ngay_thi_dt = st.date_input("Ngày thi dự kiến", min_value=datetime.today(), format="DD/MM/YYYY")
             
         submit_btn = st.form_submit_button("Lưu vào hệ thống")
         
         if submit_btn:
-            # Làm sạch khoảng trắng thừa
             ho_ten_clean = ho_ten.strip()
             cccd_clean = cccd.strip()
             sdt_clean = sdt.strip()
@@ -81,16 +82,16 @@ with tab1:
             if not ho_ten_clean or not sdt_clean or not cccd_clean:
                 st.error("❌ Vui lòng điền đầy đủ các thông tin bắt buộc (* gồm Họ tên, CCCD, Số điện thoại)")
             
-            # 2. KHÓA ĐỊNH DẠNG SỐ ĐIỆN THOẠI: Phải hoàn toàn là số, bắt đầu bằng 0 VÀ PHẢI ĐỦ 10 KÝ TỰ
+            # 2. Khóa định dạng Số điện thoại (Đủ 10 số, bắt đầu bằng 0)
             elif not sdt_clean.isdigit() or len(sdt_clean) != 10 or not sdt_clean.startswith('0'):
                 st.error(f"⚠️ SỐ ĐIỆN THOẠI KHÔNG HỢP LỆ! Bạn hiện nhập {len(sdt_clean)} ký tự. Vui lòng nhập ĐÚNG và ĐỦ 10 chữ số (bắt đầu bằng số 0).")
             
-            # 3. KHÓA ĐỊNH DẠNG CCCD: Phải hoàn toàn là số VÀ PHẢI ĐỦ 12 KÝ TỰ
+            # 3. Khóa định dạng CCCD (Đủ 12 số)
             elif not cccd_clean.isdigit() or len(cccd_clean) != 12:
                 st.error(f"⚠️ SỐ CCCD KHÔNG HỢP LỆ! Bạn hiện nhập {len(cccd_clean)} ký tự. Căn cước công dân phải nhập ĐÚNG và ĐỦ 12 chữ số.")
                 
             else:
-                # Nếu tất cả dữ liệu đều chuẩn xác 100% -> tiến hành lưu
+                # Tiến hành lưu dữ liệu
                 if len(st.session_state.df_data) == 0:
                     next_stt = 1
                 else:
@@ -107,6 +108,7 @@ with tab1:
                     "Số báo danh": sbd.strip() if sbd else "Chưa có",
                     "Số điện thoại": sdt_clean,
                     "Hạng xe": hang_xe,
+                    "Lựa xe": lura_xe,
                     "Ngày thi": ngay_thi_str
                 }
                 
@@ -208,6 +210,7 @@ with tab3:
                 worksheet.write(0, col_num, value, header_format)
             
             for i, col in enumerate(st.session_state.df_data.columns):
+                # Riêng cột Họ tên thì căn trái, các cột thông số khác căn giữa cho đẹp cân đối
                 if col in ["Họ tên"]:
                     current_format = cell_left_format
                 else:
