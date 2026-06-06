@@ -13,17 +13,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ĐÃ SỬA: Đưa chuỗi HTML về sát lề trái để tránh lỗi thụt dòng trên Python 3.14
-st.markdown("""
-<div style="background-color:#1F4E78; padding:20px; border-radius:10px; margin-bottom:25px">
-    <h1 style="color:white; text-align:center; margin:0; font-family:'Times New Roman';">
-        HỆ THỐNG QUẢN LÝ & CƠ SỞ DỮ LIỆU HỌC VIÊN LÁI XE
-    </h1>
-    <p style="color:#D9D9D9; text-align:center; margin:5px 0 0 0; font-size:14px;">
-        Hỗ trợ nghiệp vụ Trung tâm - Cập nhật Luật Sát hạch mới nhất 2026
-    </p>
-</div>
-""", unsafe_allowed_html=True)
+# ĐÃ SỬA: Thay thế hoàn toàn st.markdown HTML bằng các hàm Streamlit gốc để chống lỗi Python 3.14
+with st.container():
+    st.title("HỆ THỐNG QUẢN LÝ & CƠ SỞ DỮ LIỆU HỌC VIÊN LÁI XE")
+    st.caption("🔹 Hỗ trợ nghiệp vụ Trung tâm — Cập nhật Luật Sát hạch mới nhất 2026")
+    st.markdown("---")
 
 # Tên file lưu trữ dữ liệu mặc định của hệ thống
 DATA_FILE = "database_khachhang.xlsx"
@@ -189,6 +183,7 @@ with tab2:
 
     st.write("💡 *Mẹo thao tác trung tâm: Bạn có thể click đúp chuột thẳng vào ô dưới bảng để sửa chữ trực tiếp giống như Excel.*")
     
+    # Hiển thị bảng dữ liệu tương tác thông minh
     edited_df = st.data_editor(
         df_filtered, 
         num_rows="dynamic",
