@@ -210,89 +210,118 @@ with tab2:
         st.rerun()
 
 # ==========================================================================================
-# TAB 3: XUẤT FILE EXCEL ĐẸP IN ẤN (ĐÃ FIX LỖI ĐO ĐỘ RỘNG CỘT)
+# TAB 3: XUẤT FILE EXCEL ĐẸP IN ẤN (ĐÃ NÂNG CẤP CHỌN TỪNG NGƯỜI)
 # ==========================================================================================
 with tab3:
-    st.subheader("📋 Xem Trước & Tải Bảng Điểm/Danh Sách Sát Hạch")
+    st.subheader("📋 Tùy Chọn Học Viên Để Xuất Danh Sách In Ấn")
     
     if len(st.session_state.df_data) > 0:
-        # Làm sạch bản hiển thị trước khi xem
-        display_df = st.session_state.df_data.fillna("")
+        base_df = st.session_state.df_data.fillna("")
+        
+        # Giao diện bộ lọc chọn người thông minh
+        col_select_1, col_select_2 = st.columns([1, 4])
+        with col_select_1:
+            st.write("")
+            st.write("")
+            select_all = st.checkbox("Chọn tất cả học viên", value=True)
+            
+        with col_select_2:
+            # Tạo chuỗi hiển thị nhận diện học viên: "Họ tên (CCCD)" tránh trùng lặp trùng tên
+            student_options = [f"{row['Họ tên']} - CCCD: {row['CCCD']}" for _, row in base_df.iterrows()]
+            
+            selected_students = st.multiselect(
+                "💡 Chọn những ai muốn xuất file (Tìm kiếm nhanh bằng cách gõ tên):",
+                options=student_options,
+                default=student_options if select_all else []
+            )
+            
+        # Tiến hành lọc DataFrame dựa trên danh sách người được tick chọn
+        if selected_students:
+            # Tách chuỗi để lấy đúng số CCCD đối chiếu dữ liệu gốc
+            selected_cccds = [item.split(" - CCCD: ")[1] for item in selected_students]
+            display_df = base_df[base_df["CCCD"].isin(selected_cccds)].copy()
+        else:
+            display_df = pd.DataFrame(columns=COLUMNS_LIST)
+            
+        # Hiển thị bảng kết quả đã lọc để giáo viên/nhân viên kiểm tra trước khi bấm tải
+        st.markdown(f"**Danh sách tải xuống hiện tại gồm có: `{len(display_df)}` học viên**")
         st.dataframe(display_df, use_container_width=True)
         
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            display_df.to_excel(writer, index=False, sheet_name='DANH SÁCH HỌC VIÊN')
-            
-            workbook  = writer.book
-            worksheet = writer.sheets['DANH SÁCH HỌC VIÊN']
-            
-            header_format = workbook.add_format({
-                'bold': True,
-                'text_wrap': True,
-                'valign': 'vcenter',
-                'align': 'center',
-                'fg_color': '#1F4E78',
-                'font_color': '#FFFFFF',
-                'font_name': 'Times New Roman',
-                'font_size': 12,
-                'border': 1,
-                'border_color': '#D9D9D9'
-            })
-            
-            cell_center_format = workbook.add_format({
-                'align': 'center',
-                'valign': 'vcenter',
-                'font_name': 'Times New Roman',
-                'font_size': 11,
-                'border': 1,
-                'border_color': '#D9D9D9'
-            })
-            
-            cell_left_format = workbook.add_format({
-                'align': 'left',
-                'valign': 'vcenter',
-                'font_name': 'Times New Roman',
-                'font_size': 11,
-                'border': 1,
-                'border_color': '#D9D9D9'
-            })
-            
-            worksheet.set_row(0, 30)
-            
-            for col_num, value in enumerate(display_df.columns.values):
-                worksheet.write(0, col_num, value, header_format)
-            
-            for i, col in enumerate(display_df.columns):
-                if col in ["Họ tên", "Ghi chú"]:
-                    current_format = cell_left_format
-                else:
-                    current_format = cell_center_format
+        if len(display_df) > 0:
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                display_df.to_excel(writer, index=False, sheet_name='DANH SÁCH CHỌN IN')
                 
-                for row_num in range(1, len(display_df) + 1):
-                    val = display_df.iloc[row_num - 1, i]
-                    val_str = "" if pd.isna(val) or str(val) == "nan" else str(val).strip()
-                    worksheet.write(row_num, i, val_str, current_format)
-                    worksheet.set_row(row_num, 24)
+                workbook  = writer.book
+                worksheet = writer.sheets['DANH SÁCH CHỌN IN']
                 
-                # ĐÃ SỬA: Đoạn mã đo độ rộng cột mới cực kỳ an toàn, chống hoàn toàn lỗi NaN/Empty
-                col_series = display_df[col].astype(str).fillna("")
-                max_len = max(
-                    col_series.map(len).max() if not col_series.empty else 0,
-                    len(str(col))
-                ) + 5
-                worksheet.set_column(i, i, max_len)
+                header_format = workbook.add_format({
+                    'bold': True,
+                    'text_wrap': True,
+                    'valign': 'vcenter',
+                    'align': 'center',
+                    'fg_color': '#1F4E78',
+                    'font_color': '#FFFFFF',
+                    'font_name': 'Times New Roman',
+                    'font_size': 12,
+                    'border': 1,
+                    'border_color': '#D9D9D9'
+                })
                 
-            worksheet.set_landscape()
-            worksheet.set_paper(9)
-            worksheet.fit_to_pages(1, 0)
-            
-        st.write("")
-        st.download_button(
-            label="📥 TẢI FILE EXCEL IN ẤN (BẢN CHUẨN TRUNG TÂM)",
-            data=buffer.getvalue(),
-            file_name=f"Danh_sach_hoc_vien_trung_tam_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+                cell_center_format = workbook.add_format({
+                    'align': 'center',
+                    'valign': 'vcenter',
+                    'font_name': 'Times New Roman',
+                    'font_size': 11,
+                    'border': 1,
+                    'border_color': '#D9D9D9'
+                })
+                
+                cell_left_format = workbook.add_format({
+                    'align': 'left',
+                    'valign': 'vcenter',
+                    'font_name': 'Times New Roman',
+                    'font_size': 11,
+                    'border': 1,
+                    'border_color': '#D9D9D9'
+                })
+                
+                worksheet.set_row(0, 30)
+                
+                for col_num, value in enumerate(display_df.columns.values):
+                    worksheet.write(0, col_num, value, header_format)
+                
+                for i, col in enumerate(display_df.columns):
+                    if col in ["Họ tên", "Ghi chú"]:
+                        current_format = cell_left_format
+                    else:
+                        current_format = cell_center_format
+                    
+                    for row_num in range(1, len(display_df) + 1):
+                        val = display_df.iloc[row_num - 1, i]
+                        val_str = "" if pd.isna(val) or str(val) == "nan" else str(val).strip()
+                        worksheet.write(row_num, i, val_str, current_format)
+                        worksheet.set_row(row_num, 24)
+                    
+                    col_series = display_df[col].astype(str).fillna("")
+                    max_len = max(
+                        col_series.map(len).max() if not col_series.empty else 0,
+                        len(str(col))
+                    ) + 5
+                    worksheet.set_column(i, i, max_len)
+                    
+                worksheet.set_landscape()
+                worksheet.set_paper(9)
+                worksheet.fit_to_pages(1, 0)
+                
+            st.write("")
+            st.download_button(
+                label=f"📥 TẢI FILE EXCEL IN ẤN ({len(display_df)} HỌC VIÊN ĐÃ CHỌN)",
+                data=buffer.getvalue(),
+                file_name=f"Danh_sach_in_an_rut_gon_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        else:
+            st.warning("⚠️ Vui lòng tích chọn ít nhất 1 học viên ở ô phía trên để tạo nút tải file Excel.")
     else:
         st.info("📊 Hiện tại hệ thống cơ sở dữ liệu đang trống. Hãy nhập học viên mới ở Tab đầu tiên để xuất danh sách.")
