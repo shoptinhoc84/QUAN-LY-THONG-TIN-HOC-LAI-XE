@@ -53,7 +53,7 @@ with st.sidebar:
     DATA_FILE = st.text_input("Tên file lưu trữ gốc", value="database_khachhang.xlsx")
     
     st.markdown("---")
-    st.info("💡 **Mẹo nhỏ:** Bộ quét ảnh đã được tích hợp thuật toán AI tự động nắn chỉnh và bù dấu tiếng Việt (Ví dụ: tự sửa lỗi quét thiếu dấu từ HÂU thành HẬU).")
+    st.info("⚡ **Chế độ tự động:** Hệ thống đã kích hoạt tính năng Quét Tự Động. Bạn chỉ cần thả ảnh vào, AI sẽ tự bóc tách điền Form ngay lập tức mà không cần bấm nút.")
 
 # Tiêu đề giao diện chính
 st.markdown('<p class="main-title">HỆ THỐNG QUẢN LÝ & CƠ SỞ DỮ LIỆU HỌC VIÊN LÁI XE</p>', unsafe_allow_html=True)
@@ -111,7 +111,7 @@ def extract_cccd_info(image_bytes):
         fullname = ""
         dob = None
         
-        # 1. CHIẾN LƯỢC QUÉT SỐ CCCD (Loại bỏ khoảng trắng giả do lóa sáng)
+        # 1. CHIẾN LƯỢC QUÉT SỐ CCCD
         collapsed_text = re.sub(r'\s+', '', full_text_combined)
         match_cccd = re.search(r'\b\d{12}\b', collapsed_text)
         if match_cccd:
@@ -153,19 +153,12 @@ def extract_cccd_info(image_bytes):
                         fullname = text
                         break
 
-        # 💡 TỰ ĐỘNG SỬA LỖI CHÍNH TẢ & BÙ DẤU CỦA AI DÀNH RIÊNG CHO TÊN NGƯỜI VIỆT
+        # TỰ ĐỘNG SỬA LỖI CHÍNH TẢ & BÙ DẤU CỦA AI DÀNH RIÊNG CHO TÊN NGƯỜI VIỆT
         if fullname:
             vietnamese_name_corrections = {
-                "HÂU": "HẬU",
-                "HẢU": "HẬU",
-                "HAU": "HẬU",
-                "HOANG": "HOÀNG",
-                "TUÂN": "TUẤN",
-                "THANH": "THÀNH",
-                "VU": "VŨ",
-                "THI": "THỊ",
-                "ÊN": "ÊN",
-                "ĐƯC": "ĐỨC"
+                "HÂU": "HẬU", "HẢU": "HẬU", "HAU": "HẬU",
+                "HOANG": "HOÀNG", "TUÂN": "TUẤN", "THANH": "THÀNH",
+                "VU": "VŨ", "THI": "THỊ", "ÊN": "ÊN", "ĐƯC": "ĐỨC"
             }
             
             words = fullname.split()
@@ -185,10 +178,13 @@ def extract_cccd_info(image_bytes):
 if 'df_data' not in st.session_state:
     st.session_state.df_data = load_data()
 
-# Bộ nhớ đệm trường tự động điền
+# Bộ nhớ đệm trường tự động điền hồ sơ
 if 'ocr_name' not in st.session_state: st.session_state.ocr_name = ""
 if 'ocr_id' not in st.session_state: st.session_state.ocr_id = ""
 if 'ocr_dob' not in st.session_state: st.session_state.ocr_dob = datetime(2000, 1, 1)
+
+# Biến kiểm soát trạng thái file ảnh để kích hoạt tự động quét 1 lần duy nhất khi up file
+if 'last_processed_file' not in st.session_state: st.session_state.last_processed_file = None
 
 # Danh sách cấu hình nghiệp vụ lái xe
 HANG_XE_2026 = ["A1", "A", "B", "C1", "C", "D1", "D2", "D", "BE", "C1E", "CE", "D1E", "D2E", "DE"]
@@ -205,18 +201,20 @@ tab1, tab2, tab3 = st.tabs([
 # TAB 1: THÊM MỚI HỌC VIÊN
 # ==========================================================================================
 with tab1:
-    # Khung công cụ quét ảnh
-    with st.expander("📸 CÔNG CỤ XỬ LÝ NHANH: QUÉT THÔNG TIN TỪ ẢNH CĂN CƯỚC CÔNG DÂN (CCCD)", expanded=True):
-        st.markdown("<small style='color: gray;'>Hệ thống AI tích hợp hỗ trợ đọc file ảnh mặt trước của thẻ căn cước để tự động điền biểu mẫu, tiết kiệm thời gian nhập tay.</small>", unsafe_allow_html=True)
+    # Khung công cụ quét ảnh (Đã nâng cấp kích hoạt tự động hoàn toàn)
+    with st.expander("📸 CÔNG CỤ XỬ LÝ: TỰ ĐỘNG QUÉT THÔNG TIN ẢNH CĂN CƯỚC (CCCD)", expanded=True):
+        st.markdown("<small style='color: #1F4E78;'>⚡ <b>Chế độ Quét Tự Động đang bật:</b> Điền biểu mẫu siêu tốc bằng cách kéo thả ảnh chụp thẻ CCCD học viên vào ô dưới đây.</small>", unsafe_allow_html=True)
         st.write("")
         
         col_file, col_preview = st.columns([2, 1])
         with col_file:
             uploaded_card = st.file_uploader("Kéo thả hoặc chọn file ảnh chụp thẻ CCCD học viên...", type=["jpg", "jpeg", "png"], key="cccd_scanner")
-            st.write("")
-            if uploaded_card:
-                if st.button("⚡ TIẾN HÀNH QUÉT ẢNH TỰ ĐỘNG", use_container_width=True, type="primary"):
-                    with st.spinner("Đang chạy thuật toán AI phân tích hình ảnh..."):
+            
+            # LOGIC XỬ LÝ TỰ ĐỘNG THÔNG MINH KHÔNG CẦN BẤM NÚT
+            if uploaded_card is not None:
+                # Nếu phát hiện đây là một file mới hoàn toàn chưa từng quét
+                if st.session_state.last_processed_file != uploaded_card.name:
+                    with st.spinner("🤖 AI đang tự động phân tích và bóc tách dữ liệu ảnh..."):
                         img_bytes = uploaded_card.read()
                         ocr_name, ocr_dob, ocr_id = extract_cccd_info(img_bytes)
                         
@@ -224,15 +222,21 @@ with tab1:
                             if ocr_name: st.session_state.ocr_name = ocr_name
                             if ocr_id: st.session_state.ocr_id = ocr_id
                             if ocr_dob: st.session_state.ocr_dob = ocr_dob
-                            st.success("🎉 Đã bóc tách dữ liệu ảnh thành công! Các ô nhập liệu ở dưới đã sẵn sàng.")
+                            # Lưu lại tên file vào bộ nhớ để không bị lặp vòng lặp quét vô hạn
+                            st.session_state.last_processed_file = uploaded_card.name
+                            st.success(f"🎉 Tự động quét thành công hồ sơ: {ocr_name if ocr_name else 'Học viên'}!")
                             st.rerun()
                         else:
-                            st.error("⚠️ Không tìm thấy thông tin hợp lệ trên ảnh! Xin vui lòng kiểm tra lại góc chụp thẳng, đủ sáng hoặc tự nhập tay vào biểu mẫu bên dưới.")
+                            st.error("⚠️ Không nhận diện được chữ. Vui lòng kiểm tra lại ảnh chụp góc thẳng hoặc nhập tay vào form bên dưới.")
+            else:
+                # Nếu người dùng bấm xóa ảnh, làm sạch trạng thái biến nhớ file
+                st.session_state.last_processed_file = None
+
         with col_preview:
             if uploaded_card:
-                st.image(uploaded_card, caption="Ảnh CCCD đã chọn", width=200)
+                st.image(uploaded_card, caption="Ảnh CCCD hệ thống đang đọc", width=200)
             else:
-                st.markdown("<div style='border: 2px dashed #D9D9D9; border-radius: 8px; padding: 30px; text-align: center; color: #A0A0A0; font-size: 13px;'>Chưa có ảnh tải lên</div>", unsafe_allow_html=True)
+                st.markdown("<div style='border: 2px dashed #D9D9D9; border-radius: 8px; padding: 30px; text-align: center; color: #A0A0A0; font-size: 13px;'>Hệ thống đang đợi ảnh thẻ tải lên...</div>", unsafe_allow_html=True)
 
     st.write("")
     
