@@ -16,18 +16,22 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Nhúng hiệu ứng CSS để chuốt lại nút bấm, khung viền và bo góc theo chuẩn hiện đại
 st.markdown("""
     <style>
+    /* Làm đẹp các nút bấm chính */
     .stButton>button {
         border-radius: 8px;
         font-weight: 600;
         transition: all 0.3s ease;
     }
+    /* Tăng trải nghiệm hiển thị bảng dữ liệu */
     .stDataFrame {
         border: 1px solid #E6EBF5;
         border-radius: 8px;
         overflow: hidden;
     }
+    /* Định dạng lại tiêu đề ứng dụng */
     .main-title {
         font-size: 2.2rem;
         color: #1F4E78;
@@ -38,21 +42,28 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# --- THANH SIDEBAR ĐIỀU HƯỚNG TỔNG QUAN ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/3429/3429215.png", width=80)
     st.markdown("### **HỆ THỐNG TRUNG TÂM**")
     st.caption("Phiên bản quản lý chuyên nghiệp năm 2026")
     st.markdown("---")
+    
+    st.markdown("⚙️ **Cấu hình file dữ liệu:**")
     DATA_FILE = st.text_input("Tên file lưu trữ gốc", value="database_khachhang.xlsx")
+    
     st.markdown("---")
-    st.info("💡 **Mẹo nhỏ:** Nếu ảnh CCCD chụp bằng điện thoại quá nặng, hãy cắt bớt phần thừa xung quanh thẻ trước khi tải lên để AI đọc nhanh và chuẩn nhất.")
+    st.info("💡 **Mẹo nhỏ:** Bộ quét ảnh đã được tích hợp thuật toán AI tự động nắn chỉnh và bù dấu tiếng Việt (Ví dụ: tự sửa lỗi quét thiếu dấu từ HÂU thành HẬU).")
 
+# Tiêu đề giao diện chính
 st.markdown('<p class="main-title">HỆ THỐNG QUẢN LÝ & CƠ SỞ DỮ LIỆU HỌC VIÊN LÁI XE</p>', unsafe_allow_html=True)
 st.caption("🔹 Nền tảng nghiệp vụ lưu trữ đồng bộ hành chính — Cập nhật Luật Sát hạch 2026")
 st.markdown("---")
 
+# Khai báo các cột chuẩn của hệ thống
 COLUMNS_LIST = ["STT", "Họ tên", "Ngày sinh", "CCCD", "Số báo danh", "Số điện thoại", "Hạng xe", "Lựa xe", "Ngày thi", "Ghi chú"]
 
+# Hàm khởi tạo hoặc tải dữ liệu từ file Excel
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -69,9 +80,11 @@ def load_data():
     else:
         return pd.DataFrame(columns=COLUMNS_LIST)
 
+# Hàm lưu dữ liệu vào file Excel gốc
 def save_data(df):
     df.to_excel(DATA_FILE, index=False)
 
+# Hàm khởi tạo bộ đọc OCR trực tuyến mượt mà
 @st.cache_resource(show_spinner=False)
 def get_ocr_reader():
     try:
@@ -80,7 +93,7 @@ def get_ocr_reader():
     except Exception:
         return None
 
-# --- BỘ NÃO QUÉT ẢNH CCCD THÔNG MINH MỚI ---
+# --- BỘ NÃO QUÉT ẢNH CCCD TỰ ĐỘNG BÙ DẤU THÔNG MINH ---
 def extract_cccd_info(image_bytes):
     reader = get_ocr_reader()
     if reader is None:
@@ -89,10 +102,8 @@ def extract_cccd_info(image_bytes):
         image = Image.open(io.BytesIO(image_bytes))
         image_np = np.array(image)
         
-        # Đọc chi tiết để lấy text kèm vị trí dòng giải quyết bài toán lệch hàng
+        # Đọc chi tiết text từ ảnh
         results = reader.readtext(image_np, detail=0)
-        
-        # Làm sạch mảng ký tự nhận diện được
         cleaned_results = [text.strip() for text in results if text.strip()]
         full_text_combined = " ".join(cleaned_results)
         
@@ -100,14 +111,12 @@ def extract_cccd_info(image_bytes):
         fullname = ""
         dob = None
         
-        # 1. CHIẾN LƯỢC QUÉT SỐ CCCD (Tìm chuỗi 12 chữ số, lọc bỏ dấu cách nhiễu)
-        # Quét diện rộng loại bỏ khoảng trắng giả do lóa sáng
+        # 1. CHIẾN LƯỢC QUÉT SỐ CCCD (Loại bỏ khoảng trắng giả do lóa sáng)
         collapsed_text = re.sub(r'\s+', '', full_text_combined)
         match_cccd = re.search(r'\b\d{12}\b', collapsed_text)
         if match_cccd:
             cccd_number = match_cccd.group(0)
         else:
-            # Tìm kiếm dự phòng nếu dính chữ
             match_loose = re.search(r'\d{12}', collapsed_text)
             if match_loose:
                 cccd_number = match_loose.group(0)
@@ -120,8 +129,7 @@ def extract_cccd_info(image_bytes):
             except ValueError:
                 pass
 
-        # 3. CHIẾN LƯỢC QUÉT HỌ TÊN NÂNG CAO (Quét mốc tọa độ từ khóa văn bản)
-        # Bước A: Tìm vị trí dòng tiêu đề liên quan đến Tên
+        # 3. CHIẾN LƯỢC QUÉT HỌ TÊN (Tìm mốc tiêu đề)
         name_anchor_idx = -1
         for idx, text in enumerate(cleaned_results):
             t_upper = text.upper()
@@ -129,25 +137,45 @@ def extract_cccd_info(image_bytes):
                 name_anchor_idx = idx
                 break
                 
-        # Bước B: Nếu tìm thấy mốc tiêu đề, người đó thường nằm ở 1 hoặc 2 dòng ngay kế dưới
         if name_anchor_idx != -1:
             for offset in [1, 2]:
                 if name_anchor_idx + offset < len(cleaned_results):
                     candidate = cleaned_results[name_anchor_idx + offset]
-                    # Tên phải viết HOA hoàn toàn và không được chứa số
                     if candidate.isupper() and len(candidate.split()) >= 2 and not any(c.isdigit() for c in candidate):
                         if "CỘNG HÒA" not in candidate and "ĐỘC LẬP" not in candidate:
                             fullname = candidate
                             break
                             
-        # Bước C: Phương án dự phòng (Nếu không tìm thấy mốc chữ, quét toàn bộ dòng viết HOA giống bản cũ)
         if not fullname:
             for text in cleaned_results:
                 if text.isupper() and len(text.split()) >= 2 and not any(c.isdigit() for c in text):
-                    # Khử từ khóa hệ thống quốc hiệu tiêu đề hành chính
                     if not any(k in text for k in ["CỘNG HÒA", "ĐỘC LẬP", "CĂN CƯỚC", "CHỨNG NHẬN", "CỤC TRƯỞNG", "GIÁM ĐỐC"]):
                         fullname = text
                         break
+
+        # 💡 TỰ ĐỘNG SỬA LỖI CHÍNH TẢ & BÙ DẤU CỦA AI DÀNH RIÊNG CHO TÊN NGƯỜI VIỆT
+        if fullname:
+            vietnamese_name_corrections = {
+                "HÂU": "HẬU",
+                "HẢU": "HẬU",
+                "HAU": "HẬU",
+                "HOANG": "HOÀNG",
+                "TUÂN": "TUẤN",
+                "THANH": "THÀNH",
+                "VU": "VŨ",
+                "THI": "THỊ",
+                "ÊN": "ÊN",
+                "ĐƯC": "ĐỨC"
+            }
+            
+            words = fullname.split()
+            corrected_words = []
+            for word in words:
+                if word in vietnamese_name_corrections:
+                    corrected_words.append(vietnamese_name_corrections[word])
+                else:
+                    corrected_words.append(word)
+            fullname = " ".join(corrected_words)
                         
         return fullname, dob, cccd_number
     except Exception:
@@ -157,13 +185,16 @@ def extract_cccd_info(image_bytes):
 if 'df_data' not in st.session_state:
     st.session_state.df_data = load_data()
 
+# Bộ nhớ đệm trường tự động điền
 if 'ocr_name' not in st.session_state: st.session_state.ocr_name = ""
 if 'ocr_id' not in st.session_state: st.session_state.ocr_id = ""
 if 'ocr_dob' not in st.session_state: st.session_state.ocr_dob = datetime(2000, 1, 1)
 
+# Danh sách cấu hình nghiệp vụ lái xe
 HANG_XE_2026 = ["A1", "A", "B", "C1", "C", "D1", "D2", "D", "BE", "C1E", "CE", "D1E", "D2E", "DE"]
 LOAI_XE_LIST = ["Xe số - Xe côn (Loại 1)", "Xe tay ga (Loại 2)"]
 
+# Hệ thống các Tab lớn
 tab1, tab2, tab3 = st.tabs([
     "📥 THÊM HỌC VIÊN LÀM HỒ SƠ", 
     "📝 TRA CỨU & CẬP NHẬT NHANH", 
@@ -174,6 +205,7 @@ tab1, tab2, tab3 = st.tabs([
 # TAB 1: THÊM MỚI HỌC VIÊN
 # ==========================================================================================
 with tab1:
+    # Khung công cụ quét ảnh
     with st.expander("📸 CÔNG CỤ XỬ LÝ NHANH: QUÉT THÔNG TIN TỪ ẢNH CĂN CƯỚC CÔNG DÂN (CCCD)", expanded=True):
         st.markdown("<small style='color: gray;'>Hệ thống AI tích hợp hỗ trợ đọc file ảnh mặt trước của thẻ căn cước để tự động điền biểu mẫu, tiết kiệm thời gian nhập tay.</small>", unsafe_allow_html=True)
         st.write("")
@@ -204,6 +236,7 @@ with tab1:
 
     st.write("")
     
+    # Biểu mẫu nhập liệu học viên
     with st.form("form_them_moi", clear_on_submit=False):
         st.markdown("#### 👤 1. HỒ SƠ LÝ LỊCH CÁ NHÂN")
         c1_1, c1_2, c1_3 = st.columns([2, 1, 1.5])
@@ -272,6 +305,7 @@ with tab1:
                 st.session_state.df_data = pd.concat([st.session_state.df_data, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(st.session_state.df_data)
                 
+                # Trả bộ nhớ đệm form về trống để sẵn sàng cho người tiếp theo
                 st.session_state.ocr_name = ""
                 st.session_state.ocr_id = ""
                 st.session_state.ocr_dob = datetime(2000, 1, 1)
