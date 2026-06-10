@@ -2,7 +2,3 @@ streamlit
 pandas
 openpyxl
 xlsxwriter
-pillow
-numpy
-opencv-python-headless
-easyocr
