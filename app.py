@@ -90,7 +90,7 @@ def get_ocr_reader():
     try:
         import easyocr
         return easyocr.Reader(['vi', 'en'], gpu=False)
-    except ImportError:
+    except Exception:
         return None
 
 def extract_cccd_info(image_bytes):
@@ -153,7 +153,7 @@ tab1, tab2, tab3 = st.tabs([
 ])
 
 # ==========================================================================================
-# TAB 1: THÊM MỚI HỌC VIÊN (BẢN CHUỐT SANG TRỌNG)
+# TAB 1: THÊM MỚI HỌC VIÊN
 # ==========================================================================================
 with tab1:
     # --- KHU VỰC TRÍCH XUẤT THÔNG TIN TỰ ĐỘNG TỪ ẢNH ---
@@ -190,46 +190,46 @@ with tab1:
     # --- FORM NHẬP HỒ SƠ CHÍNH THỨC ---
     with st.form("form_them_moi", clear_on_submit=False):
         
-        # Cụm 1: Khung Thông tin cá nhân cơ bản sử dụng khung bao fieldset
-        with st.fieldset("👤 1. HỒ SƠ LÝ LỊCH CÁ NHÂN"):
-            c1_1, c1_2, c1_3 = st.columns([2, 1, 1.5])
-            with c1_1:
-                ho_ten = st.text_input("Họ và tên học viên *", value=st.session_state.ocr_name, placeholder="VÍ DỤ: NGUYỄN VĂN A")
-            with c1_2:
-                ngay_sinh_dt = st.date_input("Ngày sinh", value=st.session_state.ocr_dob, min_value=datetime(1950, 1, 1), max_value=datetime.today(), format="DD/MM/YYYY")
-            with c1_3:
-                cccd = st.text_input("Số thẻ CCCD *", value=st.session_state.ocr_id, max_chars=12, placeholder="Nhập chuẩn đủ 12 chữ số")
+        # Cụm 1: Khung Thông tin cá nhân cơ bản (Đã sửa lỗi tương thích mượt mà)
+        st.markdown("#### 👤 1. HỒ SƠ LÝ LỊCH CÁ NHÂN")
+        c1_1, c1_2, c1_3 = st.columns([2, 1, 1.5])
+        with c1_1:
+            ho_ten = st.text_input("Họ và tên học viên *", value=st.session_state.ocr_name, placeholder="VÍ DỤ: NGUYỄN VĂN A")
+        with c1_2:
+            ngay_sinh_dt = st.date_input("Ngày sinh", value=st.session_state.ocr_dob, min_value=datetime(1950, 1, 1), max_value=datetime.today(), format="DD/MM/YYYY")
+        with c1_3:
+            cccd = st.text_input("Số thẻ CCCD *", value=st.session_state.ocr_id, max_chars=12, placeholder="Nhập chuẩn đủ 12 chữ số")
         
-        st.write("")
+        st.markdown("---")
         
         # Cụm 2: Khung Thông tin Đăng ký đào tạo & Sát hạch
-        with st.fieldset("🚗 2. THÔNG TIN ĐĂNG KÝ HẠNG XE & ĐÀO TẠO"):
-            c2_1, c2_2, c2_3, c2_4 = st.columns(4)
-            with c2_1:
-                sdt = st.text_input("Số điện thoại liên hệ *", max_chars=10, placeholder="Nhập 10 số di động")
-            with c2_2:
-                hang_xe = st.selectbox("Hạng xe đào tạo đăng ký", HANG_XE_2026)
-            with c2_3:
-                lura_xe = st.selectbox("Phân loại dòng xe thi", LOAI_XE_LIST)
-            with c2_4:
-                ngay_thi_dt = st.date_input("Ngày thi sát hạch dự kiến", min_value=datetime.today(), format="DD/MM/YYYY")
+        st.markdown("#### 🚗 2. THÔNG TIN ĐĂNG KÝ HẠNG XE & ĐÀO TẠO")
+        c2_1, c2_2, c2_3, c2_4 = st.columns(4)
+        with c2_1:
+            sdt = st.text_input("Số điện thoại liên hệ *", max_chars=10, placeholder="Nhập 10 số di động")
+        with c2_2:
+            hang_xe = st.selectbox("Hạng xe đào tạo đăng ký", HANG_XE_2026)
+        with c2_3:
+            lura_xe = st.selectbox("Phân loại dòng xe thi", LOAI_XE_LIST)
+        with c2_4:
+            ngay_thi_dt = st.date_input("Ngày thi sát hạch dự kiến", min_value=datetime.today(), format="DD/MM/YYYY")
                 
-        st.write("")
+        st.markdown("---")
         
         # Cụm 3: Khung Ghi chú bổ sung lịch trình hoặc học phí
-        with st.fieldset("📝 3. THÔNG TIN BỔ SUNG KHÁC"):
-            c3_1, c3_2 = st.columns([3, 1])
-            with c3_1:
-                ghi_chu = st.text_area("Ghi chú nội bộ của trung tâm", placeholder="Ví dụ: Đã nộp đầy đủ hồ sơ ảnh chụp, thu trước học phí đợt 1...", height=80)
-            with c3_2:
-                sbd = st.text_input("Số báo danh cấp (SBD)", placeholder="Chưa cấp để trống")
+        st.markdown("#### 📝 3. THÔNG TIN BỔ SUNG KHÁC")
+        c3_1, c3_2 = st.columns([3, 1])
+        with c3_1:
+            ghi_chu = st.text_area("Ghi chú nội bộ của trung tâm", placeholder="Ví dụ: Đã nộp đầy đủ hồ sơ ảnh chụp, thu trước học phí đợt 1...", height=80)
+        with c3_2:
+            sbd = st.text_input("Số báo danh cấp (SBD)", placeholder="Chưa cấp để trống")
         
         st.write("")
         
         # Khu vực nút lưu hồ sơ được căn phải chuyên nghiệp
         col_space, col_save_btn = st.columns([4, 1])
         with col_save_btn:
-            submit_btn = st.form_submit_button("💾 LƯU CHỨNG HỒ SƠ", use_container_width=True, type="secondary")
+            submit_btn = st.form_submit_button("💾 LƯU CHỨNG HỒ SƠ", use_container_width=True)
         
         if submit_btn:
             ho_ten_clean = ho_ten.strip().upper()  
