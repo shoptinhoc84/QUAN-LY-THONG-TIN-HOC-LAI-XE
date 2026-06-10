@@ -111,16 +111,14 @@ def extract_cccd_info(image_bytes):
         fullname = ""
         dob = None
         
-        # 1. CHIẾN LƯỢC QUÉT SỐ CCCD MỚI (Tìm cụm 12 số độc lập trong từng dòng trước để tránh dính số CMND 9 số)
+        # 1. CHIẾN LƯỢC QUÉT SỐ CCCD MỚI
         for text in cleaned_results:
-            # Xóa khoảng cách lỗi trong dòng đó nếu có (ví dụ: 084 302 007 819)
             text_nodash = re.sub(r'\s+|-|_', '', text)
             match = re.search(r'\b\d{12}\b', text_nodash)
             if match:
                 cccd_number = match.group(0)
                 break
         
-        # Dự phòng nếu các dòng bị cắt đôi chữ số
         if not cccd_number:
             collapsed_text = re.sub(r'\s+|-|_', '', full_text_combined)
             match_loose = re.search(r'\d{12}', collapsed_text)
@@ -278,7 +276,7 @@ with tab1:
         st.write("")
         col_space, col_save_btn = st.columns([4, 1])
         with col_save_btn:
-            submit_btn = st.form_submit_button("💾 LƯU CHỨNG HỒ SƠ", use_container_width=True)
+            submit_btn = st.form_submit_button("💾 LƯU CHỨNG HỒ SƠ", width='stretch')
         
         if submit_btn:
             ho_ten_clean = ho_ten.strip().upper()  
@@ -350,13 +348,13 @@ with tab2:
         df_filtered, 
         num_rows="dynamic",
         key="data_editor_key",
-        use_container_width=True
+        width='stretch'
     )
     
     st.write("")
     col_save_1, col_save_2 = st.columns([5, 1])
     with col_save_2:
-        btn_save_changes = st.button("💾 ĐỒNG BỘ BẢNG SỬA ĐỔI", use_container_width=True, type="primary")
+        btn_save_changes = st.button("💾 ĐỒNG BỘ BẢNG SỬA ĐỔI", width='stretch', type="primary")
         
     if btn_save_changes:
         if search_keyword:
@@ -405,7 +403,7 @@ with tab3:
             display_df = pd.DataFrame(columns=COLUMNS_LIST)
             
         st.markdown(f"📊 **Tổng số lượng bản ghi trích xuất dữ liệu: `{len(display_df)}` học viên**")
-        st.dataframe(display_df, use_container_width=True)
+        st.dataframe(display_df, width='stretch')
         
         if len(display_df) > 0:
             buffer = io.BytesIO()
@@ -461,7 +459,7 @@ with tab3:
                 data=buffer.getvalue(),
                 file_name=f"Danh_sach_in_an_rut_gon_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
+                width='stretch'
             )
         else:
             st.warning("⚠️ Vui lòng tick chọn ít nhất 1 học viên ở ô phía trên để tạo nút tải file Excel.")
