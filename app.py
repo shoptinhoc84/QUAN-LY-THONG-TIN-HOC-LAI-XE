@@ -53,7 +53,7 @@ with st.sidebar:
     DATA_FILE = st.text_input("Tên file lưu trữ gốc", value="database_khachhang.xlsx")
     
     st.markdown("---")
-    st.info("⚡ **Chế độ tự động:** Hệ thống đã kích hoạt tính năng Quét Tự Động. Bạn chỉ cần thả ảnh vào, AI sẽ tự bóc tách điền Form ngay lập tức mà không cần bấm nút.")
+    st.info("⚡ **Chế độ tự động:** Hệ thống hỗ trợ quét cả thẻ cứng thông thường và ảnh chụp màn hình Căn cước điện tử VNeID mà không lo xung đột số.")
 
 # Tiêu đề giao diện chính
 st.markdown('<p class="main-title">HỆ THỐNG QUẢN LÝ & CƠ SỞ DỮ LIỆU HỌC VIÊN LÁI XE</p>', unsafe_allow_html=True)
@@ -93,7 +93,7 @@ def get_ocr_reader():
     except Exception:
         return None
 
-# --- BỘ NÃO QUÉT ẢNH CCCD TỰ ĐỘNG BÙ DẤU THÔNG MINH ---
+# --- BỘ NÃO QUÉT ẢNH CCCD CHỐNG XUNG ĐỘT SỐ VNEID ---
 def extract_cccd_info(image_bytes):
     reader = get_ocr_reader()
     if reader is None:
@@ -102,7 +102,7 @@ def extract_cccd_info(image_bytes):
         image = Image.open(io.BytesIO(image_bytes))
         image_np = np.array(image)
         
-        # Đọc chi tiết text từ ảnh
+        # Đọc chi tiết văn bản theo từng dòng
         results = reader.readtext(image_np, detail=0)
         cleaned_results = [text.strip() for text in results if text.strip()]
         full_text_combined = " ".join(cleaned_results)
@@ -111,12 +111,18 @@ def extract_cccd_info(image_bytes):
         fullname = ""
         dob = None
         
-        # 1. CHIẾN LƯỢC QUÉT SỐ CCCD
-        collapsed_text = re.sub(r'\s+', '', full_text_combined)
-        match_cccd = re.search(r'\b\d{12}\b', collapsed_text)
-        if match_cccd:
-            cccd_number = match_cccd.group(0)
-        else:
+        # 1. CHIẾN LƯỢC QUÉT SỐ CCCD MỚI (Tìm cụm 12 số độc lập trong từng dòng trước để tránh dính số CMND 9 số)
+        for text in cleaned_results:
+            # Xóa khoảng cách lỗi trong dòng đó nếu có (ví dụ: 084 302 007 819)
+            text_nodash = re.sub(r'\s+|-|_', '', text)
+            match = re.search(r'\b\d{12}\b', text_nodash)
+            if match:
+                cccd_number = match.group(0)
+                break
+        
+        # Dự phòng nếu các dòng bị cắt đôi chữ số
+        if not cccd_number:
+            collapsed_text = re.sub(r'\s+|-|_', '', full_text_combined)
             match_loose = re.search(r'\d{12}', collapsed_text)
             if match_loose:
                 cccd_number = match_loose.group(0)
@@ -133,7 +139,7 @@ def extract_cccd_info(image_bytes):
         name_anchor_idx = -1
         for idx, text in enumerate(cleaned_results):
             t_upper = text.upper()
-            if "HỌ VÀ TÊN" in t_upper or "FULL NAME" in t_upper or "TÊN /" in t_upper:
+            if "HỌ VÀ TÊN" in t_upper or "FULL NAME" in t_upper or "TÊN /" in t_upper or "ĐỆM VÀ TÊN" in t_upper:
                 name_anchor_idx = idx
                 break
                 
@@ -149,7 +155,7 @@ def extract_cccd_info(image_bytes):
         if not fullname:
             for text in cleaned_results:
                 if text.isupper() and len(text.split()) >= 2 and not any(c.isdigit() for c in text):
-                    if not any(k in text for k in ["CỘNG HÒA", "ĐỘC LẬP", "CĂN CƯỚC", "CHỨNG NHẬN", "CỤC TRƯỞNG", "GIÁM ĐỐC"]):
+                    if not any(k in text for k in ["CỘNG HÒA", "ĐỘC LẬP", "CĂN CƯỚC", "CHỨNG NHẬN", "CỤC TRƯỞNG", "GIÁM ĐỐC", "DANH TÍNH", "ĐIỆN TỬ"]):
                         fullname = text
                         break
 
@@ -201,18 +207,16 @@ tab1, tab2, tab3 = st.tabs([
 # TAB 1: THÊM MỚI HỌC VIÊN
 # ==========================================================================================
 with tab1:
-    # Khung công cụ quét ảnh (Đã nâng cấp kích hoạt tự động hoàn toàn)
+    # Khung công cụ quét ảnh (Tự động thích ứng cả ảnh cứng và ảnh ứng dụng VNeID)
     with st.expander("📸 CÔNG CỤ XỬ LÝ: TỰ ĐỘNG QUÉT THÔNG TIN ẢNH CĂN CƯỚC (CCCD)", expanded=True):
-        st.markdown("<small style='color: #1F4E78;'>⚡ <b>Chế độ Quét Tự Động đang bật:</b> Điền biểu mẫu siêu tốc bằng cách kéo thả ảnh chụp thẻ CCCD học viên vào ô dưới đây.</small>", unsafe_allow_html=True)
+        st.markdown("<small style='color: #1F4E78;'>⚡ <b>Chế độ Quét Tự Động đang bật:</b> Điền biểu mẫu siêu tốc bằng cách kéo thả ảnh chụp thẻ CCCD hoặc ảnh VNeID điện tử học viên vào ô dưới đây.</small>", unsafe_allow_html=True)
         st.write("")
         
         col_file, col_preview = st.columns([2, 1])
         with col_file:
             uploaded_card = st.file_uploader("Kéo thả hoặc chọn file ảnh chụp thẻ CCCD học viên...", type=["jpg", "jpeg", "png"], key="cccd_scanner")
             
-            # LOGIC XỬ LÝ TỰ ĐỘNG THÔNG MINH KHÔNG CẦN BẤM NÚT
             if uploaded_card is not None:
-                # Nếu phát hiện đây là một file mới hoàn toàn chưa từng quét
                 if st.session_state.last_processed_file != uploaded_card.name:
                     with st.spinner("🤖 AI đang tự động phân tích và bóc tách dữ liệu ảnh..."):
                         img_bytes = uploaded_card.read()
@@ -222,14 +226,12 @@ with tab1:
                             if ocr_name: st.session_state.ocr_name = ocr_name
                             if ocr_id: st.session_state.ocr_id = ocr_id
                             if ocr_dob: st.session_state.ocr_dob = ocr_dob
-                            # Lưu lại tên file vào bộ nhớ để không bị lặp vòng lặp quét vô hạn
                             st.session_state.last_processed_file = uploaded_card.name
                             st.success(f"🎉 Tự động quét thành công hồ sơ: {ocr_name if ocr_name else 'Học viên'}!")
                             st.rerun()
                         else:
                             st.error("⚠️ Không nhận diện được chữ. Vui lòng kiểm tra lại ảnh chụp góc thẳng hoặc nhập tay vào form bên dưới.")
             else:
-                # Nếu người dùng bấm xóa ảnh, làm sạch trạng thái biến nhớ file
                 st.session_state.last_processed_file = None
 
         with col_preview:
